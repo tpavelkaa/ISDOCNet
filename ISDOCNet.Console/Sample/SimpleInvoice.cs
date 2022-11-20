@@ -1,52 +1,63 @@
-﻿using System;
+﻿using DocuWare.Platform.ServerClient;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace ISDOCNet.Console.Sample
 {
     public class SimpleInvoiceVat
     {
-        public static Invoice Create()
+        private static DocuWare.Platform.ServerClient.Document _doc;
+
+        public static Invoice Create(DocuWare.Platform.ServerClient.Document doc)
         {
-            var customerName = "Zákazník";
-            var customerICO = "123456789";
-            var customerContact = new Contact(customerName, "+420 605 123 456", "zakaznik@faktura.cz");
-            var customerAddress = new PostalAddress(Country.CzechRepulic(), "Ostrava", "Nádražní", "17", "702 00");
-            var supplierName = "Dodavatel";
-            var supplierICO = "987654321";
-            var supplierDIC = "CZ987654321";
-            var supplierRegisterInformation = "Zaregistrováno u Soudu AAA";
-            var supplierContact = new Contact(supplierName, "+420 605 123 456", "dodavatel@faktura.cz");
-            var supplierAddress = new PostalAddress(Country.CzechRepulic(), "Praha", "Dvořákova", "13", "105 00");
+            _doc = doc;
+            System.Console.WriteLine("Document ID: " + doc.Id);
+            System.Console.WriteLine("Document Name: " + doc.Fields.FirstOrDefault(x => x.FieldLabel == "IČ dodavatele").Item);
+            var customerName = ParseField("Odběratel");
+            var customerICO = ParseField("IČ odběratele");
+            var customerContact = new Contact(customerName, "", "");
+            var customerAddress = new PostalAddress(Country.CzechRepulic(), "", "", "", "");
+            var supplierName = ParseField("Dodavatel");
+            var supplierICO = ParseField("IČ dodavatele");
+            var supplierDIC = ParseField("DIČ dodavatele");
+            var supplierRegisterInformation = "";
+            var supplierContact = new Contact(supplierName, "", "");
+            var supplierAddress = new PostalAddress(Country.CzechRepulic(), "", "", "", "");
 
             var result = new ISDOCNet.Invoice();
             result.version = "6.0.1";
             result.LocalCurrencyCode = "CZK";
             result.CurrRate = 1;
-            result.ID = "20200001"; //Invoice Number
+            result.ID = ParseField("Evidenční číslo dokladu"); //Invoice Number
             result.UUID = Guid.NewGuid().ToString(); // Unique inovice identification
-            result.IssueDate = DateTime.Now;
-            result.TaxPointDate = DateTime.Now;
+            result.IssueDate = Convert.ToDateTime(ParseField("Datum vystavení")).Date; //Invoice Date
+            if (DateTime.TryParse(ParseField("DUZP"), out DateTime res) == true)
+            {
+                result.TaxPointDate = res.Date; //Tax Point Date
+            }
+
             result.VATApplicable = true; //With VAT
             result.RefCurrRate = 1; // CZK To CZK
             result.ElectronicPossibilityAgreementReference = new Note();
             result.BuyerCustomerParty = new BuyerCustomerParty();
             result.BuyerCustomerParty.Party = new Party();
             result.BuyerCustomerParty.Party.Contact = customerContact;
-            result.BuyerCustomerParty.Party.PartyIdentification = new PartyIdentification("Zákazník 1", "", customerICO);
+            result.BuyerCustomerParty.Party.PartyIdentification = new PartyIdentification("Odběratel", "", customerICO);
             result.BuyerCustomerParty.Party.PartyName = new PartyName(customerName);
             result.BuyerCustomerParty.Party.PostalAddress = customerAddress;
             result.AccountingCustomerParty = new AccountingCustomerParty();
             result.AccountingCustomerParty.Party = new Party();
             result.AccountingCustomerParty.Party.Contact = customerContact;
-            result.AccountingCustomerParty.Party.PartyIdentification = new PartyIdentification("Zákazník 1", "", customerICO);
+            result.AccountingCustomerParty.Party.PartyIdentification = new PartyIdentification("Odběratel", "", customerICO);
             result.AccountingCustomerParty.Party.PartyName = new PartyName(customerName);
             result.AccountingCustomerParty.Party.PostalAddress = customerAddress;
             result.SellerSupplierParty = new SellerSupplierParty();
             result.SellerSupplierParty.Party = new Party();
             result.SellerSupplierParty.Party.Contact = supplierContact;
-            result.SellerSupplierParty.Party.PartyIdentification = new PartyIdentification("Dodavatel 1", "", supplierICO);
+            result.SellerSupplierParty.Party.PartyIdentification = new PartyIdentification("Dodavatel", "", supplierICO);
             result.SellerSupplierParty.Party.PartyName = new PartyName(supplierName);
             result.SellerSupplierParty.Party.PostalAddress = supplierAddress;
             result.SellerSupplierParty.Party.PartyTaxScheme = new PartyTaxScheme();
@@ -56,7 +67,7 @@ namespace ISDOCNet.Console.Sample
             result.AccountingSupplierParty = new AccountingSupplierParty();
             result.AccountingSupplierParty.Party = new Party();
             result.AccountingSupplierParty.Party.Contact = supplierContact;
-            result.AccountingSupplierParty.Party.PartyIdentification = new PartyIdentification("Dodavatel 1", "", supplierICO);
+            result.AccountingSupplierParty.Party.PartyIdentification = new PartyIdentification("Dodavatel", "", supplierICO);
             result.AccountingSupplierParty.Party.PartyName = new PartyName(supplierName);
             result.AccountingSupplierParty.Party.PostalAddress = supplierAddress;
             result.AccountingSupplierParty.Party.PartyTaxScheme = new PartyTaxScheme();
@@ -111,7 +122,7 @@ namespace ISDOCNet.Console.Sample
             result.TaxTotal = new TaxTotal();
             result.TaxTotal.TaxAmount = 0;
             result.TaxTotal.TaxSubTotal = new List<TaxSubTotal>();
-            foreach (var taxGroup in result.InvoiceLines.GroupBy(p => p.ClassifiedTaxCategory.Percent)) 
+            foreach (var taxGroup in result.InvoiceLines.GroupBy(p => p.ClassifiedTaxCategory.Percent))
             {
                 var taxSubTotal = new TaxSubTotal();
                 taxSubTotal.TaxableAmount = taxGroup.Sum(p => p.LineExtensionAmount);
@@ -150,6 +161,51 @@ namespace ISDOCNet.Console.Sample
             result.LegalMonetaryTotal.PaidDepositsAmount = 0;
             result.LegalMonetaryTotal.PayableAmount = result.LegalMonetaryTotal.TaxInclusiveAmount - result.LegalMonetaryTotal.PaidDepositsAmount;
             return result;
+        }
+
+        private string GetStringFromTable(DocumentIndexFieldTableRow row, string fieldLabel)
+        {
+            string? returnedRow = row.ColumnValue.FirstOrDefault(x => x.FieldLabel == fieldLabel)?.Item?.ToString() ?? string.Empty;
+
+            return returnedRow;
+        }
+
+        private float GetFloatFromTable(DocumentIndexFieldTableRow row, string fieldLabel)
+        {
+            string? valueToString = row.ColumnValue.FirstOrDefault(x => x.FieldLabel == fieldLabel)?.Item?.ToString();
+
+            float returnedRow = 0.0F;
+
+            if (valueToString != null)
+            {
+                returnedRow = float.Parse(valueToString);
+            }
+
+            return returnedRow;
+        }
+
+        private static string ParseField(string fieldLabel)
+        {
+            string? item = null;
+            if (_doc is null)
+            {
+                throw new Exception("Document document used in ParseField method is null.");
+            }
+
+            DocumentIndexField? field = _doc.Fields.FirstOrDefault(x => x.FieldLabel == fieldLabel);
+
+            if (field != null && field.Item != null)
+            {
+                item = field.Item.ToString();
+            }
+            else
+            {
+                item = string.Empty;
+            }
+
+#pragma warning disable CS8603 // Possible null reference return.
+            return item;
+#pragma warning restore CS8603 // Possible null reference return.
         }
     }
 }
