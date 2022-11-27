@@ -14,8 +14,13 @@ namespace ISDOCNet.Console.Sample
         public static Invoice Create(DocuWare.Platform.ServerClient.Document doc)
         {
             _doc = doc;
-            System.Console.WriteLine("Document ID: " + doc.Id);
-            System.Console.WriteLine("Document Name: " + doc.Fields.FirstOrDefault(x => x.FieldLabel == "IČ dodavatele").Item);
+            //System.Console.WriteLine("Document ID: " + doc.Id);
+            //System.Console.WriteLine("Document Name: " + doc.Fields.FirstOrDefault(x => x.FieldLabel == "IČ dodavatele").Item);
+            
+            ///
+            /// VARIABLES
+            ///
+
             var customerName = ParseField("Odběratel");
             var customerICO = ParseField("IČ odběratele");
             var customerContact = new Contact(customerName, "", "");
@@ -27,21 +32,41 @@ namespace ISDOCNet.Console.Sample
             var supplierContact = new Contact(supplierName, "", "");
             var supplierAddress = new PostalAddress(Country.CzechRepulic(), "", "", "", "");
 
+
+            ///
+            /// ISDOC INVOICE
+            ///
+            
             var result = new ISDOCNet.Invoice();
             result.version = "6.0.1";
-            result.LocalCurrencyCode = "CZK";
-            result.CurrRate = 1;
+            result.DocumentType = DocumentType.Item1;
             result.ID = ParseField("Evidenční číslo dokladu"); //Invoice Number
             result.UUID = Guid.NewGuid().ToString(); // Unique inovice identification
-            result.IssueDate = Convert.ToDateTime(ParseField("Datum vystavení")).Date; //Invoice Date
+            result.IssuingSystem = "DocuWare"; // Issuing system
+            if (DateTime.TryParse(ParseField("Datum vystavení"), out DateTime datVystaveni) == true)
+            {
+                result.IssueDate = datVystaveni;
+            }
+            
             if (DateTime.TryParse(ParseField("DUZP"), out DateTime res) == true)
             {
                 result.TaxPointDate = res.Date; //Tax Point Date
             }
-
-            result.VATApplicable = true; //With VAT
-            result.RefCurrRate = 1; // CZK To CZK
+            
+            if (ParseField("DIČ dodavatele") is not null)
+            {
+                result.VATApplicable = true; //With VAT
+            }            
+            else
+            {
+                result.VATApplicable = false; //Without VAT
+            }
+            
             result.ElectronicPossibilityAgreementReference = new Note();
+            result.LocalCurrencyCode = "CZK";
+            result.CurrRate = 1;
+            result.RefCurrRate = 1; // CZK To CZK
+
             result.BuyerCustomerParty = new BuyerCustomerParty();
             result.BuyerCustomerParty.Party = new Party();
             result.BuyerCustomerParty.Party.Contact = customerContact;
