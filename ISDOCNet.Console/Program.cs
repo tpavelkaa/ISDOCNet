@@ -5,7 +5,7 @@
         private static void Main(string[] args)
         {
             var filePath = @"C:\test\input.isdoc";
-            var fileSavePath = @"D:\ISDOC konektor\output\output.isdoc";
+            var fileSavePath = @"D:\isdoc\output.isdoc";
             DWHandler handler = new DWHandler("https://sbdpraha.docuware.cloud/DocuWare/Platform/Home", "dwsystem", "J6tFAstZBXqluR0nqKvW");
             //var stream = new System.IO.FileStream(filePath, System.IO.FileMode.Open);
             //var invoice = ISDOCNet.Invoice.Load(stream);
