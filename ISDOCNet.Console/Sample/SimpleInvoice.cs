@@ -61,6 +61,47 @@ namespace ISDOCNet.Console.Sample
             var invoiceType = ParseField("Typ faktury");
             var version = "6.0.2";
             var guid = Guid.NewGuid().ToString();
+            var paymentType = ParseField("ISDOC platba");
+            var bank = ParseField("Banka");
+            var iban = ParseField("IBAN");
+            var constSymbol = ParseField("Konstantní symbol");
+            var bic = ParseField("BIC");
+
+            // Switch for paymenType and PaymentMeansCode enum
+            PaymentMeansCode paymentMeansCode;
+            switch (paymentType)
+            {
+                case "Platba v hotovosti":
+                    paymentMeansCode = PaymentMeansCode.Item10;
+                    break;
+                case "Platba šekem":
+                    paymentMeansCode = PaymentMeansCode.Item20;
+                    break;
+                case "Uskutečněná kreditní transakce":
+                    paymentMeansCode = PaymentMeansCode.Item31;
+                    break;
+                case "Převod na účet":
+                    paymentMeansCode = PaymentMeansCode.Item42;
+                    break;
+                case "Platba kartou":
+                    paymentMeansCode = PaymentMeansCode.Item48;
+                    break;
+                case "Inkaso":
+                    paymentMeansCode = PaymentMeansCode.Item49;
+                    break;
+                case "Platba dobírkou":
+                    paymentMeansCode = PaymentMeansCode.Item50;
+                    break;
+                case "Zaúčtování mezi partnery":
+                    paymentMeansCode = PaymentMeansCode.Item97;
+                    break;
+                case "":
+                    paymentMeansCode = PaymentMeansCode.Item42;
+                    break;
+                default: 
+                    paymentMeansCode = PaymentMeansCode.Item42;
+                    break;
+            }
 
             ///
             /// ISDOC INVOICE
@@ -320,7 +361,20 @@ namespace ISDOCNet.Console.Sample
 
             }
             result.PaymentMeans = new PaymentMeans();
-            
+            result.PaymentMeans.Payment = new Payment();
+            result.PaymentMeans.Payment.partialPayment = false;
+            result.PaymentMeans.Payment.PaidAmount = toBePaid;
+            result.PaymentMeans.Payment.PaymentMeansCode = paymentMeansCode;            
+
+            result.PaymentMeans.Payment.Details = new Details();
+            result.PaymentMeans.Payment.Details.PaymentDueDate = dateDue.ToString("yyyy-MM-dd");
+            result.PaymentMeans.Payment.Details.ID = bankAccount; 
+            result.PaymentMeans.Payment.Details.BankCode = bankCode; 
+            result.PaymentMeans.Payment.Details.Name = bank;
+            result.PaymentMeans.Payment.Details.IBAN = iban;
+            result.PaymentMeans.Payment.Details.BIC = bic;
+            result.PaymentMeans.Payment.Details.VariableSymbol = variableSymbol;
+            result.PaymentMeans.Payment.Details.ConstantSymbol = constSymbol;
 
             return result;
         }
